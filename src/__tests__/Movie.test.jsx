@@ -1,54 +1,74 @@
-import "@testing-library/jest-dom";
-import { RouterProvider, createMemoryRouter} from "react-router-dom"
-import { render, screen } from "@testing-library/react";
-import routes from "../routes";
+import React from "react";
+import { render, screen, act } from "@testing-library/react";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
+import Movie from "../pages/Movie";
+import { mockMovies } from "./testData";
+import { vi } from "vitest";
 
-const id = 1
-const router = createMemoryRouter(routes, {
-    initialEntries: [`/movie/${id}`],
-    initialIndex: 0
-})
+describe("Movie Component", () => {
+  const renderMovie = (movieId) => {
+    return render(
+      <MemoryRouter initialEntries={[`/movie/${movieId}`]}>
+        <Routes>
+          <Route path="/movie/:id" element={<Movie />} />
+        </Routes>
+      </MemoryRouter>
+    );
+  };
 
-test("renders without any errors", () => {
-  const errorSpy = vi.spyOn(global.console, "error");
+  beforeEach(() => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(mockMovies[0]),
+      })
+    );
+  });
 
-  render(<RouterProvider router={router}/>);
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-  expect(errorSpy).not.toHaveBeenCalled();
+  it("renders without any errors", async () => {
+    await act(async () => {
+      renderMovie(1);
+    });
+  });
 
-  errorSpy.mockRestore();
-});
+  it("renders movie's title in an h1", async () => {
+    await act(async () => {
+      renderMovie(1);
+    });
+    const title = await screen.findByText(mockMovies[0].title);
+    expect(title).toBeInTheDocument();
+    expect(title.tagName).toBe("H1");
+  });
 
-test("renders movie's title in an h1", async () => {
-  render(<RouterProvider router={router} />);
-  const h1 = await screen.findByText(/Doctor Strange/);
-  expect(h1).toBeInTheDocument();
-  expect(h1.tagName).toBe("H1");
-});
+  it("renders movie's time within a p tag", async () => {
+    await act(async () => {
+      renderMovie(1);
+    });
+    const time = await screen.findByText(mockMovies[0].time.toString());
+    expect(time).toBeInTheDocument();
+    expect(time.tagName).toBe("P");
+  });
 
-test("renders movie's time within a p tag", async () => {
-  render(<RouterProvider router={router} />);
-  const p = await screen.findByText(/115/);
-  expect(p).toBeInTheDocument();
-  expect(p.tagName).toBe("P");
-});
+  it("renders a span for each genre", async () => {
+    await act(async () => {
+      renderMovie(1);
+    });
+    for (const genre of mockMovies[0].genres) {
+      const genreElement = await screen.findByText(genre);
+      expect(genreElement).toBeInTheDocument();
+      expect(genreElement.tagName).toBe("SPAN");
+    }
+  });
 
-test("renders a span for each genre",  () => {
-  render(<RouterProvider router={router} />);
-  const genres = ["Action", "Adventure", "Fantasy"];
-  genres.forEach(async (genre) =>{
-    const span = await screen.findByText(genre);
-    expect(span).toBeInTheDocument();
-    expect(span.tagName).toBe("SPAN");
-  })
-});
-
-test("renders the <NavBar /> component", async () => {
-  const router = createMemoryRouter(routes, {
-    initialEntries: [`/movie/1`]
-  })
-  render(
-      <RouterProvider router={router}/>
-  );
-  expect(await screen.findByRole("navigation")).toBeInTheDocument();
+  it("renders the <NavBar /> component", async () => {
+    await act(async () => {
+      renderMovie(1);
+    });
+    const navBar = await screen.findByRole("navigation");
+    expect(navBar).toBeInTheDocument();
+  });
 });
